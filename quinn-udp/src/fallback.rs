@@ -52,6 +52,7 @@ impl UdpSocketState {
         send(socket, transmit)
     }
 
+    #[cfg(not(target_os = "wasi"))]
     pub fn recv(
         &self,
         socket: UdpSockRef<'_>,
@@ -66,6 +67,32 @@ impl UdpSocketState {
             &mut *(bufs as *mut [IoSliceMut<'_>] as *mut [socket2::MaybeUninitSlice<'_>])
         };
         let (len, _flags, addr) = socket.0.recv_from_vectored(bufs)?;
+        meta[0] = RecvMeta {
+            len,
+            stride: len,
+            addr: addr.as_socket().unwrap(),
+            ecn: None,
+            dst_ip: None,
+        };
+        Ok(1)
+    }
+
+    // just stupid trying around with the errors from the rustc compiler,
+    // I don't think too much what I'm doing here
+    #[cfg(target_os = "wasi")]
+    pub fn recv(
+        &self,
+        socket: UdpSockRef<'_>,
+        bufs: &mut [IoSliceMut<'_>],
+        meta: &mut [RecvMeta],
+    ) -> io::Result<usize> {
+        // Safety: both `IoSliceMut` and `MaybeUninitSlice` promise to have the
+        // same layout, that of `iovec`/`WSABUF`. Furthermore `recv_vectored`
+        // promises to not write unitialised bytes to the `bufs` and pass it
+        // directly to the `recvmsg` system call, so this is safe.
+        let bufs =
+            unsafe { &mut *(bufs as *mut [IoSliceMut<'_>] as *mut [std::mem::MaybeUninit<u8>]) };
+        let (len, addr) = socket.0.recv_from(bufs)?;
         meta[0] = RecvMeta {
             len,
             stride: len,
@@ -92,11 +119,24 @@ impl UdpSocketState {
     }
 }
 
+#[cfg(not(target_os = "wasi"))]
 fn send(socket: UdpSockRef<'_>, transmit: &Transmit<'_>) -> io::Result<()> {
     socket.0.send_to(
         transmit.contents,
         &socket2::SockAddr::from(transmit.destination),
     )
+}
+
+// the wasi send_to returns an usize which we ignore for this part to get matching types
+#[cfg(target_os = "wasi")]
+fn send(socket: UdpSockRef<'_>, transmit: &Transmit<'_>) -> io::Result<()> {
+    match socket.0.send_to(
+        transmit.contents,
+        &socket2::SockAddr::from(transmit.destination),
+    ) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 pub(crate) const BATCH_SIZE: usize = 1;
