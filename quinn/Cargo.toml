@@ -65,10 +65,15 @@ rand = { workspace = true }
 rcgen = { workspace = true }
 rustls-pemfile = { workspace = true }
 clap = { workspace = true }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "macros"] }
 tracing-subscriber = { workspace = true }
 tracing-futures = { workspace = true }
 url = { workspace = true }
+
+[target.'cfg(not(target_os = "wasi"))'.dev-dependencies]
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "macros"] }
+
+[target.'cfg(target_os = "wasi")'.dev-dependencies]
+tokio = { workspace = true, features = ["rt", "time", "macros"] }
 
 [[example]]
 name = "server"
