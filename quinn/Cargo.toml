@@ -32,7 +32,9 @@ rustls-aws-lc-rs-fips = ["dep:rustls", "aws-lc-rs-fips", "proto/rustls-aws-lc-rs
 rustls-ring = ["dep:rustls", "ring", "proto/rustls-ring", "proto/ring"]
 # Enables `Endpoint::client` and `Endpoint::server` conveniences
 ring = ["proto/ring"]
-runtime-tokio = ["tokio/time", "tokio/rt", "tokio/net"]
+# runtime-tokio = ["tokio/time", "tokio/rt", "tokio/net"]
+# remove unsupported net
+runtime-tokio = ["tokio/time", "tokio/rt"]
 runtime-async-std = ["async-io", "async-std"]
 runtime-smol = ["async-io", "smol"]
 
